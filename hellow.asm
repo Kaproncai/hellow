@@ -44,7 +44,7 @@ FORMAT BINARY AS 'exe'
  DD ?          ; 6C.SizeOfHeapReserve
  DD ?          ; 70.SizeOfHeapCommit
  DD ?          ; 74.LoaderFlags
- DD 2          ; 78.NumberOfRvaAndSizes
+ DD 13         ; 78.NumberOfRvaAndSizes
  DD 0          ; 7C.Export.RVA
  DD 0          ; 80.Export.Size
  DD IMPORT-BASE; 84.Import.RVA
@@ -59,6 +59,18 @@ FORMAT BINARY AS 'exe'
  DD ?          ; A8.Basereloc.Size
  DD ?          ; AC.Debug.RVA
  DD 0          ; B0.Debug.Size
+ DD ?          ; B4.Copyright.RVA
+ DD ?          ; B8.Copyright.Size
+ DD ?          ; BC.Globalptr.RVA
+ DD ?          ; C0.Globalptr.Size
+ DD 0          ; C4.TLS.RVA
+ DD ?          ; C8.TLS.Size
+ DD ?          ; CC.LoadConfig.RVA
+ DD ?          ; D0.LoadConfig.Size
+ DD ?          ; D4.BoundImport.RVA
+ DD ?          ; D8.BoundImport.Size
+ DD IAT-BASE   ; DC.IAT.RVA
+ DD IATend-IAT ; E0.IAT.Size
 
 start:
  PUSH string
@@ -66,12 +78,14 @@ start:
  POP EAX 
 RETN
 
+IAT:
 printf:
  DD BYNAME-BASE; .AddressOfData
  DD 0          ; .Terminator
 THUNK:
  DD BYNAME-BASE; .AddressOfData
  DD 0          ; .Terminator
+IATend:
 
 BYNAME:
  DW 0
@@ -96,5 +110,4 @@ TERMINATOR:
 string:
  DB "Hello world!",0
 
-ALIGN 256      ; make sure the file is 268 bytes long at least
- DB 12 DUP 0
+; Make sure the file is 268 bytes long at least!
