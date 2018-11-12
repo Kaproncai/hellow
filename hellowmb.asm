@@ -1,4 +1,4 @@
-; Hello world! windows console application by TomCat/Abaddon
+; Hello world! windows messagebox by TomCat/Abaddon
 
 BASE EQU 00400000H
 ORG BASE
@@ -37,15 +37,15 @@ FORMAT BINARY AS 'exe'
  DD 00100000H  ; 54.SizeOfImage
  DD 2CH        ; 58.SizeOfHeaders
  DD ?          ; 5C.CheckSum
- DW 3          ; 60.Subsystem 3->console
+ DW 2          ; 60.Subsystem 2->gui
  DW 0          ; 62.DllCharacteristics
  DD 0          ; 64.SizeOfStackReserve
  DD ?          ; 68.SizeOfStackCommit
  DD 0          ; 6C.SizeOfHeapReserve
 
 IMPORT:
- DD 'msvc'     ; 70.SizeOfHeapCommit
- DD 'rt'       ; 74.LoaderFlags
+ DD 'user'     ; 70.SizeOfHeapCommit
+ DD '32'       ; 74.LoaderFlags
  DD 13         ; 78.NumberOfRvaAndSizes
  DD $-12-BASE  ; 7C.Export.RVA
  DD printf-BASE; 80.Export.Size
@@ -56,10 +56,10 @@ IMPORT:
  DW 0          ; 90.Resource.Size (TERMINATOR)
 BYNAME:
  DW 0          ;
- DD 'prin'     ; 94.Exception.RVA
+ DD 'Mess'     ; 94.Exception.RVA
 
- DD 'tf'       ; 98.Exception.Size
- DD ?          ; 9C.Security.RVA
+ DD 'ageB'     ; 98.Exception.Size
+ DD 'oxA'      ; 9C.Security.RVA
  DD ?          ; A0.Security.Size
  DD ?          ; A4.Basereloc.RVA
  DD ?          ; A8.Basereloc.Size
@@ -82,11 +82,14 @@ BYNAME:
  DD IATend-IAT ; E0.IAT.Size
 
 start:
+ SUB ECX,ECX
  MOV DL,0CH
+ PUSH ECX
  PUSH EDX
+ PUSH EDX
+ PUSH ECX
  MOV DL,printf-BASE
  CALL DWORD [EDX]
- POP EAX 
 RETN
 
 IAT:

@@ -1,4 +1,4 @@
-; Hello world! windows console application by TomCat/Abaddon
+; Dump EDX register console application by TomCat/Abaddon
 
 BASE EQU 00400000H
 ORG BASE
@@ -10,9 +10,9 @@ FORMAT BINARY AS 'exe'
  DD 'PE'       ; 04.Signature
  DW 014CH      ; 08.Machine
  DW 0          ; 0A.NumberOfSections
- DD 'Hell'     ; 0C.TimeDateStamp
- DD 'o wo'     ; 10.PointerToSymbolTable
- DD 'rld!'     ; 14.NumberOfSymbols
+ DD 'EDX:'     ; 0C.TimeDateStamp
+ DD ' %x'      ; 10.PointerToSymbolTable
+ DD ?          ; 14.NumberOfSymbols
  DW 0          ; 18.SizeOfOptionalHeader
  DW 2          ; 1A.Characteristics IMAGE_FILE_EXECUTABLE_IMAGE&!IMAGE_FILE_DLL
  DW 010BH      ; 1C.Magic
@@ -82,11 +82,13 @@ BYNAME:
  DD IATend-IAT ; E0.IAT.Size
 
 start:
+ PUSH EDX
  MOV DL,0CH
  PUSH EDX
  MOV DL,printf-BASE
  CALL DWORD [EDX]
- POP EAX 
+ POP EAX
+ POP EAX
 RETN
 
 IAT:
