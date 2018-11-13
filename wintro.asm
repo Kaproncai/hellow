@@ -1,4 +1,4 @@
-; Register dump console application by TomCat/Abaddon
+; Wintro skeleton by TomCat/Abaddon
 
 BASE EQU 00400000H
 ORG BASE
@@ -9,10 +9,11 @@ FORMAT BINARY AS 'exe'
  DW ?          ; 02.e_cblp
  DD 'PE'       ; 04.Signature
  DW 014CH      ; 08.Machine
+_peekm:
  DW 0          ; 0A.NumberOfSections
- DD ?          ; 0C.TimeDateStamp
- DD ?          ; 10.PointerToSymbolTable
- DD ?          ; 14.NumberOfSymbols
+ DD 'Peek'     ; 0C.TimeDateStamp
+ DD 'Mess'     ; 10.PointerToSymbolTable
+ DD 'ageA'     ; 14.NumberOfSymbols
  DW 0          ; 18.SizeOfOptionalHeader
  DW 2          ; 1A.Characteristics IMAGE_FILE_EXECUTABLE_IMAGE&!IMAGE_FILE_DLL
  DW 010BH      ; 1C.Magic
@@ -37,41 +38,39 @@ FORMAT BINARY AS 'exe'
  DD 00100000H  ; 54.SizeOfImage
  DD 2CH        ; 58.SizeOfHeaders
  DD ?          ; 5C.CheckSum
- DW 3          ; 60.Subsystem 3->console
+ DW 2          ; 60.Subsystem 2->gui
  DW 0          ; 62.DllCharacteristics
  DD 0          ; 64.SizeOfStackReserve
  DD ?          ; 68.SizeOfStackCommit
  DD 0          ; 6C.SizeOfHeapReserve
 
 IMPORT:
- DD 'msvc'     ; 70.SizeOfHeapCommit
- DD 'rt'       ; 74.LoaderFlags
+ DD 'user'     ; 70.SizeOfHeapCommit
+ DD '32'       ; 74.LoaderFlags
  DD 13         ; 78.NumberOfRvaAndSizes
  DD $-12-BASE  ; 7C.Export.RVA
- DD printf-BASE; 80.Export.Size
+ DD user32-BASE; 80.Export.Size
 
  DD IMPORT-BASE; 84.Import.RVA
  DD ?          ; 88.Import.Size
  DD 0          ; 8C.Resource.RVA
- DW 0          ; 90.Resource.Size (TERMINATOR)
-BYNAME:
- DW 0          ;
- DD 'prin'     ; 94.Exception.RVA
+ DD 0          ; 90.Resource.Size (TERMINATOR)
+ DD ?          ; 94.Exception.RVA
 
- DD 'tf'       ; 98.Exception.Size
+ DD ?          ; 98.Exception.Size
  DD ?          ; 9C.Security.RVA
  DD ?          ; A0.Security.Size
  DD ?          ; A4.Basereloc.RVA
  DD ?          ; A8.Basereloc.Size
 
  DD ?          ; AC.Debug.RVA
- DD ?          ; B0.Debug.Size =0?
+ DD 0          ; B0.Debug.Size
  DD ?          ; B4.Copyright.RVA
  DD ?          ; B8.Copyright.Size
  DD ?          ; BC.Globalptr.RVA
 
  DD ?          ; C0.Globalptr.Size
- DD ?          ; C4.TLS.RVA =0?
+ DD 0          ; C4.TLS.RVA
  DD ?          ; C8.TLS.Size
  DD ?          ; CC.LoadConfig.RVA
  DD ?          ; D0.LoadConfig.Size
@@ -82,26 +81,31 @@ BYNAME:
  DD IATend-IAT ; E0.IAT.Size
 
 start:
- PUSHAD
- CALL @F
- DB 'EDI: %X',13,10
- DB 'ESI: %X',13,10
- DB 'EBP: %X',13,10
- DB 'ESP: %X',13,10
- DB 'EBX: %X',13,10
- DB 'EDX: %X',13,10
- DB 'ECX: %X',13,10
- DB 'EAX: %X',13,10,0
-@@:
- CALL DWORD [EDX-start+printf]
- ADD ESP,36
+ POP EAX
+ SUB ESP,4*7   ; MSG_size
+ PUSH EAX
+
+main:
+ LEA EAX,[ESP+4+4*7]
+ SUB ECX,ECX
+ PUSH 1        ; PM_REMOVE
+ PUSH ECX
+ PUSH ECX
+ PUSH ECX
+ PUSH EAX
+ CALL DWORD [EDX-start+PeekMessageA]
+ MOV CH,1      ; WM_KEYDOWN
+ CMP [ESP-4*6],ECX
+ JNE main
+
 RETN
 
 IAT:
-printf:
- DD BYNAME-BASE; .AddressOfData
+user32:
+PeekMessageA:
+ DD _peekm-BASE; .AddressOfData
  DD 0          ; .Terminator
 IATend:
 
 ; Make sure the file is 268 bytes long at least!
-; DB BASE+268-$ DUP 0
+ DB BASE+268-$ DUP 0
