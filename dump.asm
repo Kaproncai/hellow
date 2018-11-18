@@ -94,7 +94,21 @@ start:
  DB 'EAX: %X',13,10,0
 @@:
  CALL DWORD [EDX-start+printf]
- ADD ESP,36
+ POP EAX
+ POPAD
+
+.1:
+ PUSH DWORD [EBP]
+ CALL @F
+ DB 'stack: %X',13,10,0
+@@:
+ CALL DWORD [printf]
+ POP EAX
+ POP EAX
+ SUB EBP,4
+ CMP EBP,ESP
+ JAE .1
+
 RETN
 
 IAT:
