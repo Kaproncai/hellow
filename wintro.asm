@@ -1,7 +1,7 @@
 ; Windows intro skeleton by TomCat/Abaddon
 
 RESX EQU 256
-RESY EQU 192
+RESY EQU 160
 
 BASE EQU 00400000H
 ORG BASE
@@ -201,6 +201,20 @@ start:
 
 main:
  CALL DWORD [EBP-start+GetTickCount]
+ XCHG EDX,EAX
+ SHR EDX,6
+ XCHG DL,DH
+
+ MOV EDI,00410000H
+ MOV ECX,RESX*RESY
+@@:
+ LEA EAX,[EDX+ECX]
+ XOR AL,AH
+ STOSB
+ STOSB
+ STOSB
+ INC EDI
+ LOOP @B
 
  LEA EAX,[ESP+92]
  SUB EDX,EDX
