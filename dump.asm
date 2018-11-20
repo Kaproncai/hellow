@@ -84,14 +84,14 @@ BYNAME:
 start:
  PUSHAD
  CALL @F
- DB 'EDI: %X',13,10
- DB 'ESI: %X',13,10
- DB 'EBP: %X',13,10
- DB 'ESP: %X',13,10
- DB 'EBX: %X',13,10
- DB 'EDX: %X',13,10
- DB 'ECX: %X',13,10
- DB 'EAX: %X',13,10,0
+ DB 'EDI: %X',10
+ DB 'ESI: %X',10
+ DB 'EBP: %X',10
+ DB 'ESP: %X',10
+ DB 'EBX: %X',10
+ DB 'EDX: %X',10
+ DB 'ECX: %X',10
+ DB 'EAX: %X',10,0
 @@:
  CALL DWORD [EDX-start+printf]
  POP EAX
@@ -100,7 +100,7 @@ start:
 .1:
  PUSH DWORD [EBP]
  CALL @F
- DB 'stack: %X',13,10,0
+ DB 'stack: %X',10,0
 @@:
  CALL DWORD [printf]
  POP EAX
