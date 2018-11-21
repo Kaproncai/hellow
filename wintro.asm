@@ -103,38 +103,37 @@ IMPORT:
  DD 0          ; TERMINATOR
  DD ?
 
-_showc:
- DB 0,0,'ShowCursor',0
-_creat:
- DB 0,0,'CreateWindowExA',0
-_getwr:
- DB 0,0,'GetWindowRect',0
-_getdc:
- DB 0,0,'GetDC',0
 _check:
  DB 0,0,'GetAsyncKeyState',0
-_stret:
- DB 0,0,'StretchDIBits',0
-_gtick:
- DB 0,0,'GetTickCount',0
-_mopen:
- DB 0,0,'midiOutOpen',0
 _moutm:
  DB 0,0,'midiOutShortMsg',0
+_creat:
+ DB 0,0,'CreateWindowExA',0
+_stret:
+ DB 0,0,'StretchDIBits',0
+_getwr:
+ DB 0,0,'GetWindowRect',0
+_gtick:
+ DB 0,0,'GetTickCount',0
 _exitp:
  DB 0,0,'ExitProcess',0
+_mopen:
+ DB 0,0,'midiOutOpen',0
+_showc:
+ DB 0,0,'ShowCursor',0
+_getdc:
+ DB 0,0,'GetDC',0
 
-edit:
- DB 'edit',0
-
+kern32:
+ DB 'kernel32',0
 user32:
  DB 'user32',0
 gdi32:
  DB 'gdi32',0
-kern32:
- DB 'kernel32',0
 midi32:
  DB 'winmm',0
+edit:
+ DB 'edit',0
 
 score:        
  DB 4CH,4CH,2BH,2BH,2BH,2BH
@@ -253,25 +252,25 @@ visual:
  SHR ESI,6     ; speed of the visual
  MOV EDI,00410000H
  MOV ECX,RESX*RESY
-@@:
- LEA EAX,[ESI+ECX-85]
- CBW
- XOR AL,AH
- ADD AL,AL
- STOSB
- MOV EAX,ESI
- ADD AL,CH
- CBW
- XOR AL,AH
- ADD AL,AL
- STOSB
+@loop:
  LEA EAX,[ESI+ECX+85]
+ PUSH EAX
+ MOV EDX,ESI
+ ADD DL,CH
+ PUSH EDX
+ SUB AL,85*2
+ PUSH EAX
+ SUB EDX,EDX
+@@:
+ POP EAX
  CBW
  XOR AL,AH
  ADD AL,AL
  STOSB
+ INC EDX
+ JPO @B
  INC EDI
- LOOP @B
+ LOOP @loop
  POPAD
 
 ;StretchDIBits(hdc,rc.left,rc.top,rc.right,rc.bottom,0,0,ResX,ResY,pixels,bmpnfo,0,SRCCOPY);
