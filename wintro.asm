@@ -1,4 +1,5 @@
 ; Windows intro skeleton by TomCat/Abaddon
+; Flashdance/MIDI music by ern0
 
 RESX EQU 256
 RESY EQU 160
@@ -135,6 +136,14 @@ kern32:
 midi32:
  DB 'winmm',0
 
+score:        
+ DB 4CH,4CH,2BH,2BH,2BH,2BH
+ DB 29H,29H,09H,09H,07H,07H
+tricky:
+ DB 24H,67H,9BH,0C9H,46H,89H,0BCH
+last:
+ DB 0EFH
+
 IAT:;--------------------------
 m32:
 midiOutOpen:
@@ -230,39 +239,97 @@ start:
  CALL DWORD [EBP-start+GetDC]
  PUSH EAX      ; hdc
 
-;midiOutShortMsg(handle, 0x007f4090);
- PUSH 007F4090H; send note on channel 0
- PUSH DWORD [ESP+96]
- CALL DWORD [EBP-start+midiOutShortMsg]
+ MOV EDI,0FFFF3C00H ; inital value of DI, AH, AL
+
+main0:
+ PUSH 32       ; tempo of the music
+ POP ESI
 
 main:
  CALL DWORD [EBP-start+GetTickCount]
- SHR EAX,6     ; speed
- XCHG ESI,EAX  ; angle
+ CMP EAX,EBX
+ JE main
+ XCHG EBX,EAX  ; time counter
 
+visual:
+ PUSHAD
+ SHR EBX,6     ; speed of the visual
  MOV EDI,00410000H
  MOV ECX,RESX*RESY
 @@:
- LEA EAX,[ESI+ECX]
+ LEA EAX,[EBX+ECX]
  CBW
  XOR AL,AH
  ADD AL,AL
  STOSB
  SHLD EDX,ECX,24
- LEA EAX,[ESI+EDX+85]
+ LEA EAX,[EBX+EDX+85]
  CBW
  XOR AL,AH
  ADD AL,AL
  STOSB
- LEA EAX,[ESI+ECX-85]
+ LEA EAX,[EBX+ECX-85]
  CBW
  XOR AL,AH
  ADD AL,AL
- STOSW
+ STOSB
+ INC EDI
  LOOP @B
+ POPAD
+
+;StretchDIBits(hdc,rc.left,rc.top,rc.right,rc.bottom,0,0,ResX,ResY,pixels,bmpnfo,0,SRCCOPY);
+ CALL DWORD [EBP-start+StretchDIBits]
+ SUB ESP,13*4  ; repair the stack frame (preserves StretchDIBits arguments)
+
+ DEC ESI
+ JNZ main
+
+music:
+ MOV EAX,EDI   ; AL: note counter, AH: adder
+ SAR EDI,16    ; EDI: score pointer
+
+ MOV EDX,007F4090H
+ MOV CL,0      ; get lower digit
+ AND AL,3
+ JNZ .read_note
+
+.no_trick:
+ SALC
+ INC EDI
+ MOV CL,4      ; get upper digit
+
+ CMP EDI,last-score
+ JBE .read_note 
+
+ SUB EDI,EDI
+ XOR AH,(60 XOR 72)
+ XOR BYTE [EBP-start+last],(0EFH XOR 0EBH)
+
+.read_note:
+ MOV DH,[EBP-start+score+EDI]
+ SHR DH,CL
+ CMP AL,2
+ JNE .play_note
+
+ DEC DH        ; part 1, note 3 of 4: pitch -1
+ CMP EDI,tricky-score
+ JNB .no_trick
+
+.play_note:
+ AND DH,15
+ ADD DH,AH
+ INC EAX       ; increment note counter
+ PUSH DI
+ PUSH AX
+ POP EDI       ; save to EDI
+
+;midiOutShortMsg(handle, 0x007f4090);
+ PUSH EDX      ; send note on channel 0
+ PUSH DWORD [ESP+96]
+ CALL DWORD [EBP-start+midiOutShortMsg]
 
  LEA EAX,[ESP+96]
- SUB EDX,EDX
+ CDQ           ; SUB EDX,EDX ?!
  PUSH 1        ; PM_REMOVE
  PUSH EDX
  PUSH EDX
@@ -270,12 +337,8 @@ main:
  PUSH EAX
  CALL DWORD [EBP-start+PeekMessageA]
 
-;StretchDIBits(hdc,rc.left,rc.top,rc.right,rc.bottom,0,0,ResX,ResY,pixels,bmpnfo,0,SRCCOPY);
- CALL DWORD [EBP-start+StretchDIBits]
- SUB ESP,13*4  ; repair the stack frame (preserves StretchDIBits arguments)
-
  CMP DWORD [ESP+100],00000100H
- JNE main      ; WM_KEYDOWN
+ JNE main0     ; WM_KEYDOWN
 
 quit:
  JMP DWORD [EBP-start+ExitProcess]
