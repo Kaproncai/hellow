@@ -91,6 +91,11 @@ IMPORT:
  DD ?
  DD kern32-BASE
  DD k32-BASE
+ DD 0
+ DD ?
+ DD ?
+ DD midi32-BASE
+ DD m32-BASE
  DD ?
  DD ?
  DD ?
@@ -105,12 +110,18 @@ _getwr:
  DB 0,0,'GetWindowRect',0
 _getdc:
  DB 0,0,'GetDC',0
-_peekm:
- DB 0,0,'PeekMessageA',0
 _stret:
  DB 0,0,'StretchDIBits',0
 _gtick:
  DB 0,0,'GetTickCount',0
+_mopen:
+ DB 0,0,'midiOutOpen',0
+_moutm:
+ DB 0,0,'midiOutShortMsg',0
+_peekm:
+ DB 0,0,'PeekMessageA',0
+_exitp:
+ DB 0,0,'ExitProcess',0
 
 edit:
  DB 'edit',0
@@ -121,9 +132,19 @@ gdi32:
  DB 'gdi32',0
 kern32:
  DB 'kernel32',0
+midi32:
+ DB 'winmm',0
 
 IAT:;--------------------------
+m32:
+midiOutOpen:
+ DD _mopen-BASE; .AddressOfData
+midiOutShortMsg:
+ DD _moutm-BASE; .AddressOfData
+ DD 0          ; .Terminator
 k32:
+ExitProcess:
+ DD _exitp-BASE; .AddressOfData
 GetTickCount:
  DD _gtick-BASE; .AddressOfData
  DD 0          ; .Terminator
@@ -148,7 +169,17 @@ IATend:;-----------------------
 start:
  MOV EBP,EDX
 
- PUSHAD        ; MSG
+ PUSHAD        ; MSG+hmo
+
+;midiOutOpen(&handle, 0, 0, 0, CALLBACK_NULL);
+ MOV EAX,ESP
+ CDQ           ; SUB EDX,EDX ?!
+ PUSH EDX      ; CALLBACK_NULL
+ PUSH EDX      ; 0
+ PUSH EDX      ; 0
+ PUSH EDX      ; 0
+ PUSH EAX      ; lphmo      
+ CALL DWORD [EBP-start+midiOutOpen]
 
  LEA EAX,[EBP-start+edit]
  CDQ           ; EDX:zero
@@ -199,24 +230,38 @@ start:
  CALL DWORD [EBP-start+GetDC]
  PUSH EAX      ; hdc
 
+;midiOutShortMsg(handle, 0x007f4090);
+ PUSH 007F4090H; send note on channel 0
+ PUSH DWORD [ESP+96]
+ CALL DWORD [EBP-start+midiOutShortMsg]
+
 main:
  CALL DWORD [EBP-start+GetTickCount]
- XCHG EDX,EAX
- SHR EDX,6
- XCHG DL,DH
+ SHR EAX,6     ; speed
+ XCHG ESI,EAX  ; angle
 
  MOV EDI,00410000H
  MOV ECX,RESX*RESY
 @@:
- LEA EAX,[EDX+ECX]
+ LEA EAX,[ESI+ECX]
+ CBW
  XOR AL,AH
+ ADD AL,AL
  STOSB
+ SHLD EDX,ECX,24
+ LEA EAX,[ESI+EDX+85]
+ CBW
+ XOR AL,AH
+ ADD AL,AL
  STOSB
- STOSB
- INC EDI
+ LEA EAX,[ESI+ECX-85]
+ CBW
+ XOR AL,AH
+ ADD AL,AL
+ STOSW
  LOOP @B
 
- LEA EAX,[ESP+92]
+ LEA EAX,[ESP+96]
  SUB EDX,EDX
  PUSH 1        ; PM_REMOVE
  PUSH EDX
@@ -229,8 +274,8 @@ main:
  CALL DWORD [EBP-start+StretchDIBits]
  SUB ESP,13*4  ; repair the stack frame (preserves StretchDIBits arguments)
 
- CMP DWORD [ESP+96],00000100H
+ CMP DWORD [ESP+100],00000100H
  JNE main      ; WM_KEYDOWN
- ADD ESP,124   ; 13*4+40+8*4 (StretchDIBits+BITMAPINFOHEADER+MSG)
 
-RETN
+quit:
+ JMP DWORD [EBP-start+ExitProcess]
