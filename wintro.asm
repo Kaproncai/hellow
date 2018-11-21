@@ -111,6 +111,8 @@ _getwr:
  DB 0,0,'GetWindowRect',0
 _getdc:
  DB 0,0,'GetDC',0
+_check:
+ DB 0,0,'GetAsyncKeyState',0
 _stret:
  DB 0,0,'StretchDIBits',0
 _gtick:
@@ -119,8 +121,6 @@ _mopen:
  DB 0,0,'midiOutOpen',0
 _moutm:
  DB 0,0,'midiOutShortMsg',0
-_peekm:
- DB 0,0,'PeekMessageA',0
 _exitp:
  DB 0,0,'ExitProcess',0
 
@@ -170,27 +170,24 @@ GetWindowRect:
  DD _getwr-BASE; .AddressOfData
 GetDC:
  DD _getdc-BASE; .AddressOfData
-PeekMessageA:
- DD _peekm-BASE; .AddressOfData
+GetAsyncKeyState:
+ DD _check-BASE; .AddressOfData
  DD 0          ; .Terminator
 IATend:;-----------------------
 
 start:
- MOV EBP,EDX
-
- PUSHAD        ; MSG+hmo
+ MOV EBX,EDX
 
 ;midiOutOpen(&handle, 0, 0, 0, CALLBACK_NULL);
- MOV EAX,ESP
- CDQ           ; SUB EDX,EDX ?!
- PUSH EDX      ; CALLBACK_NULL
- PUSH EDX      ; 0
- PUSH EDX      ; 0
- PUSH EDX      ; 0
- PUSH EAX      ; lphmo      
- CALL DWORD [EBP-start+midiOutOpen]
+ SUB ECX,ECX
+ PUSH ECX      ; CALLBACK_NULL
+ PUSH ECX      ; 0
+ PUSH ECX      ; 0
+ PUSH ECX      ; 0
+ PUSH EDX      ; lphmo      
+ CALL DWORD [EBX-start+midiOutOpen]
 
- LEA EAX,[EBP-start+edit]
+ LEA EAX,[EBX-start+edit]
  CDQ           ; EDX:zero
 
  PUSH 6
@@ -202,11 +199,11 @@ start:
  PUSH -RESY    ; .biHeight
  PUSH RESX     ; .biWidth
  PUSH 40       ; .biSize
- MOV EBX,ESP   ; BITMAPINFOHEADER
+ MOV EBP,ESP   ; BITMAPINFOHEADER
 
  PUSH 00CC0020H; SRCCOPY
  PUSH EDX      ; DIB_RGB_COLORS
- PUSH EBX      ; BITMAPINFOHEADER 
+ PUSH EBP      ; BITMAPINFOHEADER 
  PUSH 00410000H; pixels
  PUSH RESY
  PUSH RESX
@@ -224,51 +221,51 @@ start:
 
 ;ShowCursor(FALSE);
  PUSH EDX
- CALL DWORD [EBP-start+ShowCursor]
+ CALL DWORD [EBX-start+ShowCursor]
 
 ;CreateWindowEx(0,"edit",0,WS_POPUP|WS_MAXIMIZE|WS_VISIBLE,0,0,0,0,0,0,0,0);
- CALL DWORD [EBP-start+CreateWindowExA]
+ CALL DWORD [EBX-start+CreateWindowExA]
 
  MOV EDX,ESP
  PUSH EAX      ; hwnd
  PUSH EDX      ; RECT
  PUSH EAX      ; hwnd
- CALL DWORD [EBP-start+GetWindowRect]
+ CALL DWORD [EBX-start+GetWindowRect]
 
 ;GetDC(hwnd);
- CALL DWORD [EBP-start+GetDC]
+ CALL DWORD [EBX-start+GetDC]
  PUSH EAX      ; hdc
 
  MOV EDI,0FFFF3C00H ; inital value of DI, AH, AL
 
 main0:
  PUSH 32       ; tempo of the music
- POP ESI
+ POP EBP
 
 main:
- CALL DWORD [EBP-start+GetTickCount]
- CMP EAX,EBX
+ CALL DWORD [EBX-start+GetTickCount]
+ CMP EAX,ESI
  JE main
- XCHG EBX,EAX  ; time counter
+ XCHG ESI,EAX  ; time counter
 
 visual:
  PUSHAD
- SHR EBX,6     ; speed of the visual
+ SHR ESI,6     ; speed of the visual
  MOV EDI,00410000H
  MOV ECX,RESX*RESY
 @@:
- LEA EAX,[EBX+ECX]
+ LEA EAX,[ESI+ECX-85]
  CBW
  XOR AL,AH
  ADD AL,AL
  STOSB
- SHLD EDX,ECX,24
- LEA EAX,[EBX+EDX+85]
+ MOV EAX,ESI
+ ADD AL,CH
  CBW
  XOR AL,AH
  ADD AL,AL
  STOSB
- LEA EAX,[EBX+ECX-85]
+ LEA EAX,[ESI+ECX+85]
  CBW
  XOR AL,AH
  ADD AL,AL
@@ -278,10 +275,10 @@ visual:
  POPAD
 
 ;StretchDIBits(hdc,rc.left,rc.top,rc.right,rc.bottom,0,0,ResX,ResY,pixels,bmpnfo,0,SRCCOPY);
- CALL DWORD [EBP-start+StretchDIBits]
+ CALL DWORD [EBX-start+StretchDIBits]
  SUB ESP,13*4  ; repair the stack frame (preserves StretchDIBits arguments)
 
- DEC ESI
+ DEC EBP
  JNZ main
 
 music:
@@ -303,10 +300,10 @@ music:
 
  SUB EDI,EDI
  XOR AH,(60 XOR 72)
- XOR BYTE [EBP-start+last],(0EFH XOR 0EBH)
+ XOR BYTE [EBX-start+last],(0EFH XOR 0EBH)
 
 .read_note:
- MOV DH,[EBP-start+score+EDI]
+ MOV DH,[EBX-start+score+EDI]
  SHR DH,CL
  CMP AL,2
  JNE .play_note
@@ -325,20 +322,13 @@ music:
 
 ;midiOutShortMsg(handle, 0x007f4090);
  PUSH EDX      ; send note on channel 0
- PUSH DWORD [ESP+96]
- CALL DWORD [EBP-start+midiOutShortMsg]
+ PUSH DWORD [EBX]
+ CALL DWORD [EBX-start+midiOutShortMsg]
 
- LEA EAX,[ESP+96]
- CDQ           ; SUB EDX,EDX ?!
- PUSH 1        ; PM_REMOVE
- PUSH EDX
- PUSH EDX
- PUSH EDX
- PUSH EAX
- CALL DWORD [EBP-start+PeekMessageA]
-
- CMP DWORD [ESP+100],00000100H
- JNE main0     ; WM_KEYDOWN
+ PUSH 1BH      ; VK_ESCAPE
+ CALL DWORD [EBX-start+GetAsyncKeyState]
+ TEST EAX,EAX
+ JZ main0
 
 quit:
- JMP DWORD [EBP-start+ExitProcess]
+ JMP DWORD [EBX-start+ExitProcess]
