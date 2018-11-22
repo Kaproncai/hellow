@@ -135,13 +135,18 @@ midi32:
 edit:
  DB 'edit',0
 
+;bit mirror table
+;0123456789ABCDEF
+;084C2A6E195D3B7F
+
 score:        
- DB 4CH,4CH,2BH,2BH,2BH,2BH
- DB 29H,29H,09H,09H,07H,07H
-tricky:
- DB 24H,67H,9BH,0C9H,46H,89H,0BCH
+ DB 32H,3DH,32H,3DH,0D4H,0D5H,0D4H,0D5H,0D4H,0D5H,0D4H,0D5H
+ DB 94H,91H,94H,91H,90H,91H,90H,91H,0E0H,0E6H,0E0H,0E6H
+ DB 24H,0E6H,0D9H,93H,62H,91H,03DH
 last:
- DB 0EFH
+ DB 0F7H       ; XOR 0D7H
+adder:
+ DB 60         ; XOR 72 
 
 IAT:;--------------------------
 m32:
@@ -175,24 +180,12 @@ GetAsyncKeyState:
 IATend:;-----------------------
 
 start:
- MOV EBX,EDX
+ MOV EDI,EDX
+ SUB EBX,EBX
 
-;midiOutOpen(&handle, 0, 0, 0, CALLBACK_NULL);
- SUB ECX,ECX
- PUSH ECX      ; CALLBACK_NULL
- PUSH ECX      ; 0
- PUSH ECX      ; 0
- PUSH ECX      ; 0
- PUSH EDX      ; lphmo      
- CALL DWORD [EBX-start+midiOutOpen]
-
- LEA EAX,[EBX-start+edit]
- CDQ           ; EDX:zero
-
- PUSH 6
- POP ECX       ; ECX:6
+ LEA ECX,[EBX+6]
 @@:
- PUSH EDX
+ PUSH EBX
  LOOP @B
  PUSH 00200001H; .biPlanes+.biBitCount
  PUSH -RESY    ; .biHeight
@@ -201,94 +194,72 @@ start:
  MOV EBP,ESP   ; BITMAPINFOHEADER
 
  PUSH 00CC0020H; SRCCOPY
- PUSH EDX      ; DIB_RGB_COLORS
+ PUSH EBX      ; DIB_RGB_COLORS
  PUSH EBP      ; BITMAPINFOHEADER 
 ;PUSH 00410000H; pixels
 ;PUSH RESY
  DB 66H,6AH,41H
- PUSH EDX
+ PUSH EBX
  DW 6866H,RESY
  PUSH RESX
-;PUSH EDX
-;PUSH EDX
+;PUSH EBX
+;PUSH EBX
 
- MOV CL,8+4+2
+ MOV CL,8+4+2+4; 8:CreateWindowEx, 4:RECT, 2:StretchDIBits, 4:midiOutOpen
 @@:
- PUSH EDX
+ PUSH EBX
  LOOP @B
+
+;midiOutOpen(&handle, 0, 0, 0, CALLBACK_NULL);
+ PUSH EDX      ; lphmo      
+ CALL DWORD [EDI-start+midiOutOpen]
+
+ LEA EAX,[EDI-start+edit]
  PUSH 91000000H; WS_POPUP|WS_MAXIMIZE|WS_VISIBLE
- PUSH EDX
+ PUSH EBX
  PUSH EAX
- PUSH EDX
+ PUSH EBX
 
 ;ShowCursor(FALSE);
- PUSH EDX
- CALL DWORD [EBX-start+ShowCursor]
+ PUSH EBX
+ CALL DWORD [EDI-start+ShowCursor]
 
 ;CreateWindowEx(0,"edit",0,WS_POPUP|WS_MAXIMIZE|WS_VISIBLE,0,0,0,0,0,0,0,0);
- CALL DWORD [EBX-start+CreateWindowExA]
+ CALL DWORD [EDI-start+CreateWindowExA]
 
  MOV EDX,ESP
  PUSH EAX      ; hwnd
  PUSH EDX      ; RECT
  PUSH EAX      ; hwnd
- CALL DWORD [EBX-start+GetWindowRect]
+ CALL DWORD [EDI-start+GetWindowRect]
 
 ;GetDC(hwnd);
- CALL DWORD [EBX-start+GetDC]
+ CALL DWORD [EDI-start+GetDC]
  PUSH EAX      ; hdc
 
- MOV EDI,0FFFF3C00H ; inital value of DI, AH, AL
-
 music:
- MOV EAX,EDI   ; AL: note counter, AH: adder
- SAR EDI,16    ; EDI: score pointer
-
- MOV EDX,007F4090H
- MOV CL,0      ; get lower digit
- AND AL,3
- JNZ .read_note
-
-.no_trick:
- SALC
- INC EDI
- MOV CL,4      ; get upper digit
-
- CMP EDI,last-score
- JBE .read_note 
-
- SUB EDI,EDI
- XOR AH,(60 XOR 72)
- XOR BYTE [EBX-start+last],(0EFH XOR 0EBH)
-
-.read_note:
- MOV DH,[EBX-start+score+EDI]
- SHR DH,CL
- CMP AL,2
- JNE .play_note
-
- DEC DH        ; part 1, note 3 of 4: pitch -1
- CMP EDI,tricky-score
- JNB .no_trick
-
-.play_note:
- AND DH,15
- ADD DH,AH
- INC EAX       ; increment note counter
- PUSH DI
- PUSH AX
- POP EDI       ; save to EDI
+ MOV EDX,007F1090H
+@@:
+ BT [EDI-start+score],EBX
+ RCL DH,1
+ INC BL
+ JNC @B
+ ADD DH,[EDI-start+adder]
+ TEST BL,BL
+ JNZ @F
+ XOR WORD [EDI-start+last],7420H
+@@:
 
 ;midiOutShortMsg(handle, 0x007f4090);
  PUSH EDX      ; send note on channel 0
- PUSH DWORD [EBX]
- CALL DWORD [EBX-start+midiOutShortMsg]
+ PUSH DWORD [EDI]
+ CALL DWORD [EDI-start+midiOutShortMsg]
 
  PUSH 32       ; tempo of the music
  POP EBP
 
 main:
- CALL DWORD [EBX-start+GetTickCount]
+ CALL DWORD [EDI-start+GetTickCount]
  CMP EAX,ESI
  JE main
  XCHG ESI,EAX  ; time counter
@@ -302,12 +273,12 @@ visual:
  MOV EDI,[ESP+17*4]
  MOV ECX,RESX*RESY
 @loop:
- LEA EAX,[ESI+ECX+85]
+ LEA EAX,[ESI+ECX]
  PUSH EAX
- MOV EDX,ESI
- ADD DL,CH
+ MOV DL,CH
+ ADD EDX,ESI
  PUSH EDX
- SUB AL,85*2
+ ADD EAX,EDX
  PUSH EAX
  SUB EDX,EDX
 @@:
@@ -323,13 +294,13 @@ visual:
  POPAD
 
 ;StretchDIBits(hdc,rc.left,rc.top,rc.right,rc.bottom,0,0,ResX,ResY,pixels,bmpnfo,0,SRCCOPY);
- CALL DWORD [EBX-start+StretchDIBits]
+ CALL DWORD [EDI-start+StretchDIBits]
  SUB ESP,13*4  ; repair the stack frame (preserves StretchDIBits arguments)
 
  PUSH 1BH      ; VK_ESCAPE
- CALL DWORD [EBX-start+GetAsyncKeyState]
+ CALL DWORD [EDI-start+GetAsyncKeyState]
  TEST EAX,EAX
  JZ main
 
 quit:
- JMP DWORD [EBX-start+ExitProcess]
+ JMP DWORD [EDI-start+ExitProcess]
