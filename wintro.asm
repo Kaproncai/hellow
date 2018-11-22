@@ -240,49 +240,6 @@ start:
 
  MOV EDI,0FFFF3C00H ; inital value of DI, AH, AL
 
-main0:
- PUSH 32       ; tempo of the music
- POP EBP
-
-main:
- CALL DWORD [EBX-start+GetTickCount]
- CMP EAX,ESI
- JE main
- XCHG ESI,EAX  ; time counter
-
-visual:
- PUSHAD
- SHR ESI,6     ; speed of the visual
- MOV EDI,[ESP+17*4]
- MOV ECX,RESX*RESY
-@loop:
- LEA EAX,[ESI+ECX+85]
- PUSH EAX
- MOV EDX,ESI
- ADD DL,CH
- PUSH EDX
- SUB AL,85*2
- PUSH EAX
- SUB EDX,EDX
-@@:
- POP EAX
- CBW
- XOR AL,AH
- ADD AL,AL
- STOSB
- INC EDX
- JPO @B
- INC EDI
- LOOP @loop
- POPAD
-
-;StretchDIBits(hdc,rc.left,rc.top,rc.right,rc.bottom,0,0,ResX,ResY,pixels,bmpnfo,0,SRCCOPY);
- CALL DWORD [EBX-start+StretchDIBits]
- SUB ESP,13*4  ; repair the stack frame (preserves StretchDIBits arguments)
-
- DEC EBP
- JNZ main
-
 music:
  MOV EAX,EDI   ; AL: note counter, AH: adder
  SAR EDI,16    ; EDI: score pointer
@@ -327,10 +284,52 @@ music:
  PUSH DWORD [EBX]
  CALL DWORD [EBX-start+midiOutShortMsg]
 
+ PUSH 32       ; tempo of the music
+ POP EBP
+
+main:
+ CALL DWORD [EBX-start+GetTickCount]
+ CMP EAX,ESI
+ JE main
+ XCHG ESI,EAX  ; time counter
+
+ DEC EBP
+ JZ music
+
+visual:
+ PUSHAD
+ SHR ESI,6     ; speed of the visual
+ MOV EDI,[ESP+17*4]
+ MOV ECX,RESX*RESY
+@loop:
+ LEA EAX,[ESI+ECX+85]
+ PUSH EAX
+ MOV EDX,ESI
+ ADD DL,CH
+ PUSH EDX
+ SUB AL,85*2
+ PUSH EAX
+ SUB EDX,EDX
+@@:
+ POP EAX
+ CBW
+ XOR AL,AH
+ ADD AL,AL
+ STOSB
+ INC EDX
+ JPO @B
+ INC EDI
+ LOOP @loop
+ POPAD
+
+;StretchDIBits(hdc,rc.left,rc.top,rc.right,rc.bottom,0,0,ResX,ResY,pixels,bmpnfo,0,SRCCOPY);
+ CALL DWORD [EBX-start+StretchDIBits]
+ SUB ESP,13*4  ; repair the stack frame (preserves StretchDIBits arguments)
+
  PUSH 1BH      ; VK_ESCAPE
  CALL DWORD [EBX-start+GetAsyncKeyState]
  TEST EAX,EAX
- JZ main0
+ JZ main
 
 quit:
  JMP DWORD [EBX-start+ExitProcess]
