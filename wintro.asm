@@ -196,18 +196,16 @@ start:
  PUSH 00CC0020H; SRCCOPY
  PUSH EBX      ; DIB_RGB_COLORS
  PUSH EBP      ; BITMAPINFOHEADER 
-;PUSH 00410000H; pixels
-;PUSH RESY
- DB 66H,6AH,41H
+ DB 66H,6AH,41H; pixels (PUSH 00410000H)
  PUSH EBX
- DW 6866H,RESY
- PUSH RESX
-;PUSH EBX
-;PUSH EBX
+ DW 6866H,RESY ; RESY (PUSH RESY)
+ PUSH RESX     ; RESX
+;PUSH EBX      ; 0
+;PUSH EBX      ; 0
 
- MOV CL,8+4+2+4; 8:CreateWindowEx, 4:RECT, 2:StretchDIBits, 4:midiOutOpen
+ MOV CL,2+4+8+4; 2:StretchDIBits, 4:midiOutOpen, 8:CreateWindowEx, 4:RECT
 @@:
- PUSH EBX
+ PUSH EBX      ; fill by zero
  LOOP @B
 
 ;midiOutOpen(&handle, 0, 0, 0, CALLBACK_NULL);
