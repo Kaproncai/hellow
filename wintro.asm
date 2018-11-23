@@ -101,7 +101,7 @@ IMPORT:
  DD ?
  DD ?
  DD 0          ; TERMINATOR
- DD ?
+ DB ?,?,?
 
 _check:
  DB 0,0,'GetAsyncKeyState',0
@@ -180,47 +180,46 @@ GetAsyncKeyState:
 IATend:;-----------------------
 
 start:
- MOV EDI,EDX
- SUB EBX,EBX
+ MOV EDI,EDX   ; EDI:start
+ SUB EBX,EBX   ; EBX:0
+ MUL EBX       ; EAX:0,EDX:0
+ MOV AH,RESX/256;EAX:RESX
+ MOV DL,RESY   ; EDX:RESY
 
  LEA ECX,[EBX+6]
 @@:
  PUSH EBX
  LOOP @B
  PUSH 00200001H; .biPlanes+.biBitCount
- PUSH -RESY    ; .biHeight
- PUSH RESX     ; .biWidth
+ PUSH EDX      ; .biHeight (negative value->vertical flip)
+ PUSH EAX      ; .biWidth
  PUSH 40       ; .biSize
  MOV EBP,ESP   ; BITMAPINFOHEADER
 
  PUSH 00CC0020H; SRCCOPY
  PUSH EBX      ; DIB_RGB_COLORS
  PUSH EBP      ; BITMAPINFOHEADER 
- DB 66H,6AH,41H; pixels (PUSH 00410000H)
- PUSH EBX
- DW 6866H,RESY ; RESY (PUSH RESY)
- PUSH RESX     ; RESX
-;PUSH EBX      ; 0
-;PUSH EBX      ; 0
+ PUSH start+RESX*RESY
+ PUSH EDX      ; RESY
+ PUSH EAX      ; RESX
 
- MOV CL,2+4+8+4; 2:StretchDIBits, 4:midiOutOpen, 8:CreateWindowEx, 4:RECT
+ MOV CL,2+4+1+8+4; 2:StretchDIBits, 4:midiOutOpen, 1:ShowCursor, 8:CreateWindowEx, 4:RECT
 @@:
  PUSH EBX      ; fill by zero
  LOOP @B
 
 ;midiOutOpen(&handle, 0, 0, 0, CALLBACK_NULL);
- PUSH EDX      ; lphmo      
+ PUSH EDI      ; lphmo      
  CALL DWORD [EDI-start+midiOutOpen]
+
+;ShowCursor(FALSE);
+ CALL DWORD [EDI-start+ShowCursor]
 
  LEA EAX,[EDI-start+edit]
  PUSH 91000000H; WS_POPUP|WS_MAXIMIZE|WS_VISIBLE
  PUSH EBX
  PUSH EAX
  PUSH EBX
-
-;ShowCursor(FALSE);
- PUSH EBX
- CALL DWORD [EDI-start+ShowCursor]
 
 ;CreateWindowEx(0,"edit",0,WS_POPUP|WS_MAXIMIZE|WS_VISIBLE,0,0,0,0,0,0,0,0);
  CALL DWORD [EDI-start+CreateWindowExA]
@@ -253,7 +252,7 @@ music:
  PUSH DWORD [EDI]
  CALL DWORD [EDI-start+midiOutShortMsg]
 
- PUSH 32       ; tempo of the music
+ PUSH 29       ; tempo of the music
  POP EBP
 
 main:
@@ -268,8 +267,9 @@ main:
 visual:
  PUSHAD
  SHR ESI,6     ; speed of the visual
- MOV EDI,[ESP+17*4]
- MOV ECX,RESX*RESY
+ SUB ECX,ECX
+ MOV CH,RESX*RESY/256
+ ADD EDI,ECX
 @loop:
  LEA EAX,[ESI+ECX]
  PUSH EAX
